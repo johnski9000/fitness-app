@@ -3,23 +3,19 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Button,
   Image,
   ImageBackground,
 } from "react-native";
 import React, { useState } from "react";
 import { NavigationProp } from "@react-navigation/native";
 import Navigation from "../components/Navigation/Navigation";
-import {
-  FIREBASE_AUTH,
-  FIREBASE_APP,
-  FIRESTORAGE_DB,
-} from "../../FirebaseConfig";
-import { ref, uploadBytes } from "firebase/storage";
+import { FIREBASE_AUTH, FIRESTORAGE_DB } from "../../FirebaseConfig";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import * as ImagePicker from "expo-image-picker";
 import { useDispatch, useSelector } from "react-redux";
-import {  getDownloadURL } from "firebase/storage";
-import { clearUser } from "../../userSlice";
+import { updateProfile } from "firebase/auth";
+import { setUser } from "../../userSlice";
+import { LinearGradient } from "expo-linear-gradient";
 
 interface RouterProps {
   navigation: NavigationProp<any, any>;
@@ -27,11 +23,11 @@ interface RouterProps {
 
 export default function Details({ navigation }: RouterProps) {
   const user = useSelector((state) => state.user);
-  console.log(user);
-  const [image, setImage] = useState(null);
+  const auth = FIREBASE_AUTH;
   const [loading, setLoading] = useState(null);
-  const dispatch = useDispatch()
+  const dispatch = useDispatch();
   const storageRef = ref(FIRESTORAGE_DB, `images/${user?.user?.uid}`);
+  const imageUrl = user?.user?.photoURL || undefined;
 
   const pickImage = async () => {
     try {
@@ -41,43 +37,43 @@ export default function Details({ navigation }: RouterProps) {
         aspect: [4, 3],
         quality: 1,
       });
-  
+
       if (result.canceled) {
         return;
       }
-      // https://firebasestorage.googleapis.com/v0/b/fitness-native-app.appspot.com/o/images/fnSWEs9NPRX1XAl26a00kV7czQx2?alt=media
-
       const response = await fetch(result.assets[0].uri);
       const blob = await response.blob();
 
       setLoading(true);
-      uploadBytes(storageRef, blob).then(downloadURL => {
-        console.log(`Successfully uploaded file and got download link - ${downloadURL}`);
-        setImage(downloadURL);
-        console.log(4)
-        console.log(downloadURL)
-      })
-      .catch(error => {
-        console.error("Error uploading image:", error);
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  
+      uploadBytes(storageRef, blob)
+        .then(() => {
+          console.log("uploaded a file!");
+        })
+        .then(() => {
+          getDownloadURL(storageRef)
+            .then((url) => {
+              updateProfile(auth.currentUser, {
+                photoURL: url,
+              })
+                .then(() => {
+                  dispatch(setUser(auth.currentUser));
+                  console.log("updated user");
+                })
+                .catch((error) => {
+                  console.log(error);
+                });
+            })
+            .catch((error) => {
+              console.error("Error getting the download URL: ", error);
+            });
+        });
     } catch (error) {
       console.error("Error picking image:", error);
     }
   };
-  
 
   return (
     <View style={styles.container}>
-      {/* <Text style={{color: "white"}}>Profile</Text> */}
-      <TouchableOpacity onPress={() => {
-        dispatch(clearUser())
-        FIREBASE_AUTH.signOut()}} >
-        <Text style={{color: "white"}}>Log Out</Text>
-      </TouchableOpacity>
       <View style={styles.profileImageMainContainer}>
         <ImageBackground
           source={require("../../assets/profile.jpg")}
@@ -90,28 +86,67 @@ export default function Details({ navigation }: RouterProps) {
             style={styles.profileImageContainer}
           >
             <Image
-              source={
-                user?.user?.photoURL
-                  ? { uri: image }
-                  : require("../../assets/noImage.webp")
-              }
+              source={{ uri: imageUrl }}
               resizeMode="cover"
+              alt=""
               style={styles.profileImage}
             />
-
             <Image
               source={require("../../assets/camera.png")}
               style={styles.camera}
             />
           </TouchableOpacity>
+          <View style={styles.nameContainer}>
+            <Text style={styles.name}>Janusz Wozniak</Text>
+          </View>
+          <LinearGradient
+            colors={["transparent", "rgb(255,255,255)"]}
+            style={styles.gradient}
+          />
         </ImageBackground>
-      
+        <View style={styles.scrollContainer}>
+          <View style={styles.bodyweightDetailsContainer}>
+            <View style={styles.bodyweightDetailsChild}>
+              <Text>6 foot</Text>
+            </View>
+            <View style={styles.bodyweightDetailsChild}>
+              <Text>100kg</Text>
+            </View>
+            <View style={styles.bodyweightDetailsChild}>
+              <Text>18% bf</Text>
+            </View>
+          </View>
+          <View>
+            <Text>Email Address</Text>
+            
+          </View>
+        </View>
       </View>
       <Navigation navigation={navigation} />
     </View>
   );
 }
 const styles = StyleSheet.create({
+  scrollContainer: {
+    overflow: "scroll"
+  },
+  gradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 200,
+    zIndex: 10,
+  },
+  nameContainer: {
+    zIndex: 11,
+    marginTop: 20,
+  },
+  name: {
+    color: "black",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
   container: {
     height: "100%",
     padding: 0,
@@ -137,11 +172,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   profileImageContainer: {
-    zIndex: 10,
+    zIndex: 20,
   },
   profileImage: {
-    width: 120,
-    height: 120,
+    width: 100,
+    height: 100,
     borderRadius: 120 / 2,
   },
   camera: {
@@ -150,5 +185,18 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
+  },
+  bodyweightDetailsContainer: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "row",
+    margin: "auto",
+    paddingTop: 20,
+  },
+  bodyweightDetailsChild: {
+    flex: 1,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
   },
 });

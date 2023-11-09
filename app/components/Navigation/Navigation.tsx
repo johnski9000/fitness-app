@@ -3,6 +3,7 @@ import React from "react";
 import { useRoute } from "@react-navigation/native";
 import { FIREBASE_AUTH } from "../../../FirebaseConfig";
 
+
 interface NavigationProps {
   navigation: any; // Declare navigation as any type
 }
@@ -28,19 +29,28 @@ export default function Navigation({ navigation }: NavigationProps) {
       image: require("../../../assets/user.png"),
       text: "Profile",
     },
+    {
+      image: require("../../../assets/exit.png"),
+      text: "Log out"
+    }
   ];
   return (
+    
     <View style={styles.container}>
       {data.map((item, index) => (
         <TouchableOpacity
-        onPress={() => navigation.navigate(item.text)}
+        onPress={() => {
+          if (item.text !== "Log out"){
+          navigation.navigate(item.text)
+        } else {
+          FIREBASE_AUTH.signOut();
+        }
+      }}
         style={name === item.text ? styles.navItemActive : styles.navItem}
         key={index}
         >
           <Image source={item.image} style={name === item.text ? styles.navImageActive : styles.navImage}/>
-          {/* <Text 
-          style={name === item.text ? styles.navItemTextActive : styles.navItemText}
-          >{item.text}</Text> */}
+
         </TouchableOpacity>
       ))}
     </View>
@@ -55,7 +65,8 @@ const styles = StyleSheet.create({
     display: "flex",
     flexDirection: "row",
     height: 60,
-    backgroundColor: "#505050",
+    backgroundColor: "black"
+    // backgroundColor: "#505050",
   },
   navItem: {
     flex: 1,
@@ -81,13 +92,14 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   navImage: {
-    width: 35,
-    height: 35,
+    width: 25,
+    height: 25,
     tintColor: 'white',
+    
   },
   navImageActive: {
-    width: 35,
-    height: 35,
+    width: 25,
+    height: 25,
     tintColor: "rgb(253, 208, 47)"
   }
 });

@@ -10,8 +10,6 @@ interface RouterProps {
     navigation: NavigationProp<any, any>
   }
 export default function Home( {navigation} : RouterProps) {
-  const count = useSelector((state:any) => state.user.value)
-  const dispatch = useDispatch()
 
 
   return (
